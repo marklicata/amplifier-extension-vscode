@@ -1,0 +1,36 @@
+bundle:
+  name: chat-bundle
+  version: 1.0.0
+  description: Amplifier Onboarding - local bundle used for site-wide chat.
+
+session:
+  orchestrator:
+    module: loop-basic
+    source: git+https://github.com/microsoft/amplifier-module-loop-basic@main
+  context:
+    module: context-simple
+    source: git+https://github.com/microsoft/amplifier-module-context-simple@main
+
+providers:
+  - config:
+      default_model: claude-sonnet-4-5-20250929
+      enable_1m_context: 'false'
+      priority: 1
+      debug: true
+      raw_debug: true
+    module: provider-anthropic
+    source: git+https://github.com/microsoft/amplifier-module-provider-anthropic@main
+
+tools:
+  - module: tool-read-file
+    source: git+https://github.com/microsoft/amplifier-module-tool-read-file@main
+  - module: tool-write-file
+    source: git+https://github.com/microsoft/amplifier-module-tool-write-file@main
+  - module: tool-edit-file
+    source: git+https://github.com/microsoft/amplifier-module-tool-edit-file@main
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+  - module: tool-glob
+    source: git+https://github.com/microsoft/amplifier-module-tool-glob@main
+  - module: tool-grep
+    source: git+https://github.com/microsoft/amplifier-module-tool-grep@main
