@@ -9,17 +9,6 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
     private responseBuffer = '';
     private pythonPath?: string;  // Cached Python path
     public context?: vscode.ExtensionContext;  // Set by extension.ts
-import * as vscode from 'vscode';
-import { ChildProcess } from 'child_process';
-
-export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
-    
-    private bridgeProcess?: ChildProcess;
-    private isInitialized = false;
-    private pendingResponses = new Map<string, (value: any) => void>();
-    private responseBuffer = '';
-    private pythonPath?: string;  // Cached Python path
-    public context?: vscode.ExtensionContext;  // Set by extension.ts
     
     /**
      * Provide information about available Amplifier models
@@ -130,8 +119,6 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
         
         const { spawn } = require('child_process');
         const path = require('path');
-        const { spawn } = require('child_process');
-        const path = require('path');
         
         // Path to the Python bridge script
         const bridgePath = path.join(this.context.extensionPath, 'src-amplifier', 'amplifier_bridge.py');
@@ -152,25 +139,58 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
         if (this.pythonPath.includes('wsl.localhost') || this.pythonPath.includes('wsl$')) {
             // Convert UNC path to Linux path
             // \\wsl.localhost\Ubuntu\home\user\... -> /home/user/...
-            let wslPythonPath = this.pythonPath
-                .replace(/\\/g, '/')  // Convert backslashes to forward slashes
-                .replace(/^\/\/wsl\.localhost\/Ubuntu/, '')  // Remove UNC prefix
-                .replace(/^\/\/wsl\$\/Ubuntu/, '');  // Alternative UNC format
+            let wslPythonPath = this.pythonPath;
             
-            // Ensure it starts with / if it doesn't already
-            if (!wslPythonPath.startsWith('/')) {
-                wslPythonPath = '/' + wslPythonPath;
+            // Find "Ubuntu" in the path and take everything after it
+            const ubuntuIndex = wslPythonPath.indexOf('Ubuntu');
+            if (ubuntuIndex !== -1) {
+                wslPythonPath = wslPythonPath.substring(ubuntuIndex + 'Ubuntu'.length);
+                
+                // Remove leading slashes
+                while (wslPythonPath.startsWith('\\') || wslPythonPath.startsWith('/')) {
+                    wslPythonPath = wslPythonPath.substring(1);
+                }
             }
+            
+            // Split on backslashes and rejoin with forward slashes
+            wslPythonPath = wslPythonPath.split('\\').filter(part => part).join('/');
+            
+            // Add leading /
+            wslPythonPath = '/' + wslPythonPath;
             
             // Use wsl --exec to avoid shell initialization
             command = 'wsl';
             args = ['--exec', wslPythonPath, wslScriptPath];
-            console.log(`[Bridge] Using WSL: wsl --exec ${wslPythonPath} ${wslScriptPath}`);
         } else {
             // Use python directly (Windows or in PATH)
             command = this.pythonPath;
             args = [bridgePath];
         }
+        
+        // Spawn the bridge process with environment variables
+        const env: NodeJS.ProcessEnv = {
+            ...process.env,
+            PYTHONUNBUFFERED: '1'
+        };
+        
+        // When using WSL, configure WSLENV to pass API keys from Windows to Linux
+        if (command === 'wsl') {
+            const wslEnvVars = [
+                'ANTHROPIC_API_KEY',
+                'OPENAI_API_KEY',
+                'AZURE_OPENAI_API_KEY',
+                'AZURE_OPENAI_ENDPOINT'
+            ].filter(key => process.env[key]);  // Only include vars that exist
+            
+            if (wslEnvVars.length > 0) {
+                env['WSLENV'] = wslEnvVars.join('/u:') + '/u';  // /u flag passes variables as-is
+            }
+        }
+        
+        const proc = spawn(command, args, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            shell: command !== 'wsl',  // Only use shell for non-WSL commands
+            env
         });
         
         this.bridgeProcess = proc;
@@ -241,7 +261,7 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error('Bridge initialization timeout - try again or check connection'));
-            }, 240000); // 4 minute timeout (tools need to download)
+            }, 120000); // 2 minute timeout (tools need to download)
             
             this.pendingResponses.set('current', (response: any) => {
                 clearTimeout(timeout);
