@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src-extension/**/*"],
+  "include": ["src-extension/**/*", "vscode.proposed.*.d.ts"],
   "exclude": ["node_modules", ".vscode-test"]
 }

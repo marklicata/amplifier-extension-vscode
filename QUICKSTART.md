@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+> ⚠️ **This extension requires VS Code Insiders** - It uses a proposed API that is not available in stable VS Code.
+
 ## What Changed
 
 Your extension now uses a **persistent Python bridge** instead of spawning the CLI each time.
@@ -40,7 +42,15 @@ vscode-amplifier/
 
 ## Prerequisites
 
-### 1. Install Python Dependencies
+### 1. VS Code Insiders (Required!)
+
+This extension uses the **proposed `chatProvider` API** which only works in VS Code Insiders.
+
+**Download**: https://code.visualstudio.com/insiders/
+
+> ⚠️ The extension will install in stable VS Code, but **Amplifier will NOT appear in the model picker** without Insiders + proposed API enabled.
+
+### 2. Install Python Dependencies
 
 ```bash
 pip install amplifier-core amplifier-foundation
@@ -49,13 +59,13 @@ pip install amplifier-core amplifier-foundation
 uv pip install amplifier-core amplifier-foundation
 ```
 
-### 2. Set API Key
+### 3. Set API Key
 
 ```bash
 export ANTHROPIC_API_KEY='your-key-here'
 ```
 
-### 3. Verify Installation
+### 4. Verify Installation
 
 ```bash
 python3 -c "from amplifier_core import AmplifierSession; print('OK')"
@@ -64,11 +74,12 @@ python3 -c "from amplifier_foundation import load_bundle; print('OK')"
 
 ## Testing
 
-### 1. Launch Extension
+### 1. Launch Extension (Development)
 
-In VSCode (with the `vscode-amplifier` folder open):
+In **VS Code Insiders** (with the `vscode-amplifier` folder open):
 - Press **F5**
 - Extension Development Host window opens
+- Proposed APIs are **automatically enabled** in debug mode
 
 ### 2. Use the Extension
 
@@ -79,6 +90,8 @@ In the Extension Development Host window:
 3. **Select "Amplifier (Persistent Session)"** from model picker
 4. **Send first message** - Will see "_Initializing Amplifier..._" (takes 5-10 sec)
 5. **Send second message** - Should be instant! (session already running)
+
+> **Troubleshooting**: If "Amplifier" doesn't appear in the model picker, make sure you're using VS Code Insiders and the proposed API is enabled.
 
 ### 3. Test Conversation Persistence
 
@@ -195,6 +208,43 @@ export OPENAI_API_KEY='your-key-here'
 2. **Fine-tune UI filtering** - Hide/show what you want in chat
 3. **Package for distribution** - `npm run package` creates `.vsix`
 4. **Add features** - Streaming, progress indicators, etc.
+
+## Distributing the Extension
+
+### Package It
+```bash
+npm run package
+# Creates: vscode-amplifier-0.1.0.vsix
+```
+
+### Share With Others
+
+Recipients need:
+1. **VS Code Insiders** - https://code.visualstudio.com/insiders/
+2. **The `.vsix` file**
+3. **Python + amplifier-foundation installed**
+4. **Their own API key**
+
+### Recipient Setup Instructions
+
+```bash
+# Install the extension
+code-insiders --install-extension vscode-amplifier-0.1.0.vsix
+```
+
+Then enable the proposed API (one-time):
+1. Open VS Code Insiders
+2. Press `Ctrl+Shift+P` → "Preferences: Configure Runtime Arguments"
+3. Add this to the JSON file:
+   ```json
+   {
+       "enable-proposed-api": ["amplifier.vscode-amplifier"]
+   }
+   ```
+4. Restart VS Code Insiders
+5. Open Chat and select "Amplifier" from the model picker
+
+> **Why Insiders?** The Language Model Chat Provider API is a "proposed API" that Microsoft is still finalizing. Once it becomes stable, this extension will work in regular VS Code and can be published to the Marketplace.
 
 ## Architecture Notes
 

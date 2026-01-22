@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ChildProcess } from 'child_process';
+import { getApiKey } from './extension';
 
 export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
     
@@ -73,7 +74,7 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
 
         try {
             // Ensure bridge process is running
-            this.ensureBridgeProcess();
+            await this.ensureBridgeProcess();
             
             if (!this.bridgeProcess) {
                 throw new Error('Failed to start bridge process');
@@ -112,9 +113,33 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
     /**
      * Get bridge process (lazily spawn if needed)
      */
-    private ensureBridgeProcess(): void {
+    private async ensureBridgeProcess(): Promise<void> {
         if (this.bridgeProcess || !this.context) {
             return;
+        }
+        
+        // Check for API key before spawning
+        const providerType = vscode.workspace.getConfiguration('amplifier').get<string>('provider') || 'anthropic';
+        let apiKey = await getApiKey(this.context, providerType);
+        
+        // Prompt if not found
+        if (!apiKey) {
+            const result = await vscode.window.showWarningMessage(
+                `No API key found for ${providerType}. Would you like to set one now?`,
+                'Set API Key',
+                'Cancel'
+            );
+            
+            if (result === 'Set API Key') {
+                await vscode.commands.executeCommand('amplifier.setApiKey');
+                apiKey = await getApiKey(this.context, providerType);
+                
+                if (!apiKey) {
+                    throw new Error('API key required to use Amplifier');
+                }
+            } else {
+                throw new Error('API key required to use Amplifier');
+            }
         }
         
         const { spawn } = require('child_process');
@@ -167,11 +192,24 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
             args = [bridgePath];
         }
         
-        // Spawn the bridge process with environment variables
+        // Get API key from secrets/env and add to environment
+        const configuredProvider = vscode.workspace.getConfiguration('amplifier').get<string>('provider') || 'anthropic';
+        const resolvedApiKey = await getApiKey(this.context, configuredProvider);
+        
         const env: NodeJS.ProcessEnv = {
             ...process.env,
             PYTHONUNBUFFERED: '1'
         };
+        
+        // Add the API key to environment
+        if (resolvedApiKey) {
+            const envKeyNames: Record<string, string> = {
+                'anthropic': 'ANTHROPIC_API_KEY',
+                'openai': 'OPENAI_API_KEY',
+                'azure': 'AZURE_OPENAI_API_KEY'
+            };
+            env[envKeyNames[configuredProvider]] = resolvedApiKey;
+        }
         
         // When using WSL, configure WSLENV to pass API keys from Windows to Linux
         if (command === 'wsl') {
@@ -180,7 +218,7 @@ export class AmplifierChatProvider implements vscode.LanguageModelChatProvider {
                 'OPENAI_API_KEY',
                 'AZURE_OPENAI_API_KEY',
                 'AZURE_OPENAI_ENDPOINT'
-            ].filter(key => process.env[key]);  // Only include vars that exist
+            ].filter(key => env[key]);  // Only include vars that exist in our env
             
             if (wslEnvVars.length > 0) {
                 env['WSLENV'] = wslEnvVars.join('/u:') + '/u';  // /u flag passes variables as-is

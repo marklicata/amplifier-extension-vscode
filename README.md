@@ -2,6 +2,8 @@
 
 Use [Amplifier](https://github.com/microsoft/amplifier) as a persistent language model in VSCode Chat.
 
+> ⚠️ **Important**: This extension uses VS Code's proposed `chatProvider` API and **requires VS Code Insiders**. It will not work in the stable version of VS Code. See [Requirements](#requirements) for details.
+
 ## What This Does
 
 This extension bridges VSCode's chat interface with Amplifier's AI orchestration system. Unlike traditional language models, this maintains a **persistent session** across all your chat interactions:
@@ -31,9 +33,20 @@ The bridge service:
 3. Executes all prompts on the same session (context preserved!)
 4. Only re-initializes if workspace changes or process crashes
 
-## Prerequisites
+## Requirements
 
-### 1. Python and amplifier-foundation
+### 1. VS Code Insiders (Required)
+
+This extension uses the **proposed `chatProvider` API** which is only available in VS Code Insiders. The stable version of VS Code does not support custom language model providers.
+
+**Why Insiders?**
+- The Language Model Chat Provider API is still being finalized by Microsoft
+- Proposed APIs are only enabled in Insiders builds
+- Once the API stabilizes, this extension will work in stable VS Code
+
+**Download**: [VS Code Insiders](https://code.visualstudio.com/insiders/)
+
+### 2. Python and amplifier-foundation
 
 ```bash
 # Install amplifier-foundation
@@ -43,7 +56,7 @@ pip install git+https://github.com/microsoft/amplifier-foundation
 uv pip install git+https://github.com/microsoft/amplifier-foundation
 ```
 
-### 2. API Keys
+### 3. API Keys
 
 Set your LLM provider API key:
 
@@ -55,7 +68,7 @@ export ANTHROPIC_API_KEY='your-key-here'
 export OPENAI_API_KEY='your-key-here'
 ```
 
-### 3. GitHub Copilot
+### 4. GitHub Copilot
 
 You need an active Copilot subscription (Free, Pro, Business, or Enterprise) to use custom language model providers in VSCode.
 
@@ -73,17 +86,45 @@ You need an active Copilot subscription (Free, Pro, Business, or Enterprise) to 
    ```bash
    npm run compile
    ```
-4. Press `F5` in VSCode to launch Extension Development Host
+4. Open the folder in **VS Code Insiders**
+5. Press `F5` to launch Extension Development Host (proposed APIs are automatically enabled in debug mode)
 
-### From VSIX (Production)
+### From VSIX (For Distribution)
 
+#### Step 1: Package the extension
 ```bash
-# Package the extension
 npm run package
-
-# Install in VSCode
-code --install-extension vscode-amplifier-0.1.0.vsix
 ```
+
+#### Step 2: Install in VS Code Insiders
+```bash
+code-insiders --install-extension vscode-amplifier-0.1.0.vsix
+```
+
+#### Step 3: Enable the proposed API (one-time setup)
+
+The extension uses a proposed API that must be explicitly enabled. Choose one method:
+
+**Option A: Configure permanently (Recommended)**
+
+1. Open VS Code Insiders
+2. Run command: `Preferences: Configure Runtime Arguments`
+3. Add to the `argv.json` file:
+   ```json
+   {
+       "enable-proposed-api": ["amplifier.vscode-amplifier"]
+   }
+   ```
+4. Restart VS Code Insiders
+
+**Option B: Launch with flag**
+
+Always launch VS Code Insiders with:
+```bash
+code-insiders --enable-proposed-api=amplifier.vscode-amplifier
+```
+
+> **Note**: Without enabling the proposed API, the extension will install but Amplifier will NOT appear in the model picker.
 
 ## Usage
 
@@ -285,6 +326,41 @@ Benefits:
 - Context builds naturally across the conversation
 - Much faster response times (no startup overhead)
 
+## Distributing to Others
+
+### What Recipients Need
+
+1. **VS Code Insiders** - Download from [code.visualstudio.com/insiders](https://code.visualstudio.com/insiders/)
+2. **The `.vsix` file** - Share `vscode-amplifier-0.1.0.vsix`
+3. **Python + amplifier-foundation** - `pip install git+https://github.com/microsoft/amplifier-foundation`
+4. **API key** - Their own Anthropic/OpenAI API key
+5. **GitHub Copilot subscription** - Required for custom model providers
+
+### Quick Setup Instructions for Recipients
+
+```bash
+# 1. Install the extension in Insiders
+code-insiders --install-extension vscode-amplifier-0.1.0.vsix
+
+# 2. Enable the proposed API (run this once)
+code-insiders --enable-proposed-api=amplifier.vscode-amplifier
+```
+
+Then in VS Code Insiders:
+1. Run command: `Preferences: Configure Runtime Arguments`
+2. Add: `"enable-proposed-api": ["amplifier.vscode-amplifier"]`
+3. Restart VS Code Insiders
+4. Open Chat (`Ctrl+Alt+I`) and select "Amplifier" from the model picker
+
+### Why Can't This Be Published to the Marketplace?
+
+Extensions using proposed APIs cannot be published to the VS Code Marketplace. This is a Microsoft policy because proposed APIs:
+- May change without notice
+- Are not guaranteed to be stable
+- Are still being finalized
+
+Once the `chatProvider` API moves to stable, this extension can be published normally.
+
 ## License
 
 MIT
@@ -294,3 +370,4 @@ MIT
 - [Amplifier](https://github.com/microsoft/amplifier)
 - [Amplifier Foundation](https://github.com/microsoft/amplifier-foundation)
 - [VSCode Language Model Chat Provider API](https://code.visualstudio.com/api/extension-guides/ai/language-model-chat-provider)
+- [VS Code Proposed API Documentation](https://code.visualstudio.com/api/advanced-topics/using-proposed-api)
